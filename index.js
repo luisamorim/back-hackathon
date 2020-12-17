@@ -47,10 +47,33 @@ io.on('connection', (socket) => {
     socket.on('new-message', (message) => {
         io.emit('new-message', message);
     });
+
+    io.on('connection', function (socket) {
+        socket.on('sendMessageToWhats', function (msg) {
+            console.log('send message to whats');
+            console.log(msg);
+
+            //io.sockets.emit('chat message', 'sent message: ' + JSON.stringify(msg));
+            const accountSid = process.env.TWILIO_ACCOUNT_SID;
+            const authToken = process.env.TWILIO_AUTH_TOKEN;
+            const client = require('twilio')(accountSid, authToken);
+
+            client.messages
+                .create({
+                    from: 'whatsapp:+14155238886',
+                    body: msg.message,
+                    to: 'whatsapp:+' + msg.To
+                }).then(result => {
+                    io.sockets.emit('chat message', JSON.stringify(result));
+            });
+        });
+    });
 });
 
 app.use(bodyParser.urlencoded({ extended: false }))
 app.use(bodyParser.json())
+app.use(express.static('public'));
+
 
 async function bootstrap() {
     mongo.connect();
@@ -66,8 +89,10 @@ app.get('/webhooks', async (req, res) => {
 });
 
 app.post('/webhooks', async (req, res) => {
+    console.log('webhooks received:');
+    console.log(req.body);
     const result = await mongo.getInstance().collection('webhooks').insertOne(req.body);
-    socket.emit('twilio-message', req.body);
+    io.sockets.emit('chat message', JSON.stringify(req.body));
     res.status(201).json(result);
 })
 
