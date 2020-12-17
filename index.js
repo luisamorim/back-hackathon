@@ -6,6 +6,10 @@ const http = require('http').createServer(app);
 const mongo = require('./mongo');
 const bodyParser = require('body-parser')
 
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const client = require('twilio')(accountSid, authToken);
+
 const io = require('socket.io')(http, {
     cors: {
         origin: '*',
@@ -52,16 +56,10 @@ io.on('connection', (socket) => {
         socket.on('sendMessageToWhats', function (msg) {
             console.log('send message to whats');
             console.log(msg);
-
-            //io.sockets.emit('chat message', 'sent message: ' + JSON.stringify(msg));
-            const accountSid = process.env.TWILIO_ACCOUNT_SID;
-            const authToken = process.env.TWILIO_AUTH_TOKEN;
-            const client = require('twilio')(accountSid, authToken);
-
             client.messages
                 .create({
                     from: 'whatsapp:+14155238886',
-                    body: msg.message,
+                    body: '' + msg.message,
                     to: 'whatsapp:+' + msg.To
                 }).then(result => {
                     io.sockets.emit('chat message', JSON.stringify(result));
@@ -99,10 +97,6 @@ app.post('/webhooks', async (req, res) => {
 app.post('/sendMessage', async (req, res) => {
     const to = req.body.To
     const message = req.body.message
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const client = require('twilio')(accountSid, authToken);
-
     const result = await client.messages
         .create({
             from: 'whatsapp:+14155238886',
