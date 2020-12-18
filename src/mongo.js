@@ -4,12 +4,12 @@ const url = process.env.MONGO_URL
 var _database;
 
 module.exports = {
-  connect: ( ) => {
-    MongoClient.connect( url,  { useUnifiedTopology: true }, function( err, client ) {
-        if(err) throw err;
-        _database  = client.db('test');
-        console.log('databse created');
-    } );
+  connect: () => {
+    MongoClient.connect(url, { useUnifiedTopology: true }, function (err, client) {
+      if (err) throw err;
+      _database = client.db('test');
+      console.log('database created');
+    });
   },
 
   getInstance: () => {

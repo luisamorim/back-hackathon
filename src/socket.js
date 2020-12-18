@@ -1,64 +1,69 @@
 const twilio = require('./twilio');
+const mongo = require('./mongo');
 
 var _socket = {};
 
+_socket.init = function (http) {
 
-_socket.init = function(http){
-    
-    const io = require('socket.io')(http, {
-        cors: {
-            origin: '*',
+  const io = require('socket.io')(http, {
+    cors: {
+      origin: '*',
+    }
+  });
+
+  io.on('connection', (socket) => {
+
+    console.log('connected');
+
+    socket.on('sendMessageToWhats', function (msg) {
+      console.log('send message to whats');
+      console.log(msg);
+      twilio.sendMessage(msg.To, msg.message.toString()).then(result => {
+        socket.emit('chat message', JSON.stringify(result));
+      })
+    });
+
+    socket.on('new-message', async (message) => {
+      await mongo.getInstance().collection('message').insertOne(message);
+      // console.log('io', io);
+      // console.log('socket', socket);
+      // io.emit('new-message', message);
+      socket.emit('new-message', message);
+      socket.broadcast.to(message.sendTo._id).emit('new-message', message);
+    });
+
+    socket.on('all-messages', async (params) => {
+      let result;
+      if (params) {
+        var query = {
+          sendBy: { $in: [params.sendBy, params.sendTo] },
+          sendTo: { $in: [params.sendBy, params.sendTo] }
         }
+        result = await mongo.getInstance().collection('message').find(query).toArray();
+      } else {
+        result = await mongo.getInstance().collection('message').find().toArray();
+      }
+      socket.emit('all-messages', result);
     });
 
-    io.on('connection', (socket) => {
-    
-        console.log('connected');
-        let previousId;
-        const safeJoin = (currentId) => {
-            socket.leave(previousId);
-            socket.join(currentId);
-            previousId = currentId;
-        };
-    
-        socket.on("angular", (message) => {
-            console.log(message);
-        });
-    
-        socket.on("getDoc", docId => {
-            safeJoin(docId);
-            socket.emit("document", documents[docId]);
-        });
-    
-        socket.on("addDoc", doc => {
-            documents[doc.id] = doc;
-            safeJoin(doc.id);
-            io.emit("documents", Object.keys(documents));
-            socket.emit("document", doc);
-        });
-    
-        socket.on("editDoc", doc => {
-            documents[doc.id] = doc;
-            socket.to(doc.id).emit("document", doc);
-        });
-    
-        socket.on('new-message', (message) => {
-            io.emit('new-message', message);
-        });
-    
-        socket.on('sendMessageToWhats', function (msg) {
-            console.log('send message to whats');
-            console.log(msg);
-            twilio.sendMessage(msg.To, msg.message.toString()).then(result => {
-                socket.emit('chat message', JSON.stringify(result));
-                
-            })
-        });
-
-        
+    socket.on('new-user', async (user) => {
+      const result = await mongo.getInstance().collection('user').findOne({ username: user.username });
+      if (result) {
+        socket.emit('logged-in', result);
+      } else {
+        await mongo.getInstance().collection('user').insertOne(user);
+        socket.emit('logged-in', user);
+        io.emit('new-user', user);
+      }
     });
 
-    return io;
+    socket.on('all-users', async () => {
+      const result = await mongo.getInstance().collection('user').find().toArray();
+      socket.emit('all-users', result);
+    });
+  });
+
+  return io;
 }
 
 module.exports = _socket;
