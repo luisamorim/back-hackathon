@@ -1,18 +1,16 @@
-const MongoClient = require('mongodb').MongoClient;
-const url = process.env.MONGO_URL
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const client = require('twilio')(accountSid, authToken);
 
-var _database;
+var twilio = {};
 
-module.exports = {
-  connect: () => {
-    MongoClient.connect(url, { useUnifiedTopology: true }, function (err, client) {
-      if (err) throw err;
-      _database = client.db('test');
-      console.log('database created');
+twilio.sendMessage = async (to, message) => {
+  return await client.messages
+    .create({
+      from: 'whatsapp:+14155238886',
+      body: message,
+      to: 'whatsapp:+' + to
     });
-  },
+}
 
-  getInstance: () => {
-    return _database;
-  }
-};
+module.exports = twilio
