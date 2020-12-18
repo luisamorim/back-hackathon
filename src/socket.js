@@ -24,6 +24,9 @@ _socket.init = function (http) {
     });
 
     socket.on('new-message', async (message) => {
+      if (!message.status) {
+        message.status = 'CREATED';
+      }
       await mongo.getInstance().collection('message').insertOne(message);
       socket.emit('new-message', message);
       socket.to(`${message.sendTo._id}`).emit('new-message', message);
@@ -65,6 +68,18 @@ _socket.init = function (http) {
     socket.on('all-users', async () => {
       const result = await mongo.getInstance().collection('user').find().toArray();
       socket.emit('all-users', result);
+    });
+
+    socket.on('clear-base', async () => {
+      const users = await mongo.getInstance().collection('user').find().toArray();
+      const messages = await mongo.getInstance().collection('message').find().toArray();
+
+      users.forEach(async (element) => {
+        await mongo.getInstance().collection('user').deleteOne({ _id: element._id })
+      });
+      messages.forEach(async (element) => {
+        await mongo.getInstance().collection('message').deleteOne({ _id: element._id })
+      });
     });
   });
 
